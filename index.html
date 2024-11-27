@@ -3,40 +3,99 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: white;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --gradient-primary-start: #00c6ff;
+            --gradient-primary-end: #0072ff;
+            --gradient-secondary-start: #11998e;
+            --gradient-secondary-end: #38ef7d;
+            --border-color: #eee;
+            --shadow-color: rgba(0,0,0,0.1);
+        }
+
+        body.dark-mode {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #333;
+            --shadow-color: rgba(255,255,255,0.1);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 20px;
-            background: #f5f5f5;
-            color: #333;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s, color 0.3s;
         }
 
         .container {
             max-width: 600px;
             margin: 0 auto;
-            background: white;
+            background: var(--bg-secondary);
             padding: 20px;
             border-radius: 16px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px var(--shadow-color);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .mode-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .mode-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .datetime-header {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            font-weight: bold;
+            background: linear-gradient(90deg, var(--gradient-primary-start), var(--gradient-primary-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .progress-section {
             margin: 20px 0;
+            position: relative;
         }
 
-        .timeline-bar {
-            background: #eee;
+        .timeline-bar, .workday-bar {
+            background: var(--border-color);
             height: 12px;
             border-radius: 6px;
             overflow: hidden;
             position: relative;
+            margin-bottom: 10px;
+        }
+
+        .timeline-progress, .workday-progress {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.3s ease;
         }
 
         .timeline-progress {
-            height: 100%;
-            border-radius: 6px;
-            background: linear-gradient(90deg, #00c6ff, #0072ff);
-            transition: width 0.3s ease;
+            background: linear-gradient(90deg, var(--gradient-primary-start), var(--gradient-primary-end));
+        }
+
+        .workday-progress {
+            background: linear-gradient(90deg, var(--gradient-secondary-start), var(--gradient-secondary-end));
         }
 
         .weekend-circle {
@@ -48,23 +107,30 @@
 
         .circle-bg {
             fill: none;
-            stroke: #eee;
-            stroke-width: 8;
+            stroke: var(--border-color);
+            stroke-width: 12;
         }
 
         .circle-progress {
             fill: none;
-            stroke: url(#gradient);
-            stroke-width: 8;
             stroke-linecap: round;
             transform: rotate(-90deg);
             transform-origin: 50% 50%;
             transition: stroke-dashoffset 0.3s ease;
+            stroke-width: 12;
+        }
+
+        .weekend-progress {
+            stroke: url(#weekend-gradient);
+        }
+
+        .workday-progress {
+            stroke: url(#workday-gradient);
         }
 
         .progress-text {
             font-size: 0.9rem;
-            color: #666;
+            color: var(--text-secondary);
             margin: 8px 0;
             display: flex;
             justify-content: space-between;
@@ -75,14 +141,14 @@
             justify-content: space-between;
             margin-top: 8px;
             font-size: 0.85rem;
-            color: #666;
+            color: var(--text-secondary);
         }
 
-        .weekend-stats {
+        .weekend-stats, .workday-stats {
             text-align: center;
             margin-top: 10px;
             font-size: 0.9rem;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         @media (max-width: 480px) {
@@ -99,6 +165,9 @@
 </head>
 <body>
     <div class="container">
+        <button class="mode-toggle" aria-label="Toggle Dark Mode">🌓</button>
+        <div class="datetime-header" id="datetime">Loading...</div>
+
         <div class="progress-section">
             <h3>Timeline Progress</h3>
             <div class="timeline-bar">
@@ -115,16 +184,31 @@
         </div>
 
         <div class="progress-section">
+            <h3>Workday Progress</h3>
+            <div class="workday-bar">
+                <div class="workday-progress" id="workdayProgress"></div>
+            </div>
+            <div class="workday-stats">
+                <div id="workdayCount">Loading...</div>
+                <div id="workdayRemaining">Loading...</div>
+            </div>
+        </div>
+
+        <div class="progress-section">
             <h3>Weekend Progress</h3>
             <svg class="weekend-circle" viewBox="0 0 100 100">
                 <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <linearGradient id="weekend-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:#00c6ff" />
                         <stop offset="100%" style="stop-color:#0072ff" />
                     </linearGradient>
+                    <linearGradient id="workday-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#11998e" />
+                        <stop offset="100%" style="stop-color:#38ef7d" />
+                    </linearGradient>
                 </defs>
                 <circle class="circle-bg" cx="50" cy="50" r="45"/>
-                <circle class="circle-progress" id="weekendProgress" 
+                <circle class="circle-progress weekend-progress" id="weekendProgress" 
                         cx="50" cy="50" r="45"
                         stroke-dasharray="283"
                         stroke-dashoffset="283"/>
@@ -137,13 +221,37 @@
     </div>
 
     <script>
-        function getWeekendDays(start, end) {
+        function formatDate(date) {
+            const options = {
+                timeZone: 'Asia/Kolkata',
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
+            return new Intl.DateTimeFormat('en-IN', options).format(date);
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('datetime').textContent = formatDate(now);
+        }
+
+        function getSpecificDays(start, end, dayType = 'weekend') {
             let count = 0;
             let current = new Date(start);
             
             while (current <= end) {
                 const day = current.getDay();
-                if (day === 0 || day === 6) count++;
+                if (dayType === 'weekend' && (day === 0 || day === 6)) {
+                    count++;
+                } else if (dayType === 'workday' && (day > 0 && day < 6)) {
+                    count++;
+                }
                 current.setDate(current.getDate() + 1);
             }
             return count;
@@ -153,6 +261,9 @@
             const startDate = new Date('2024-09-22');
             const endDate = new Date('2028-06-30');
             const currentDate = new Date();
+
+            // Update date and time
+            updateDateTime();
 
             // Timeline progress
             const totalDuration = endDate - startDate;
@@ -167,26 +278,58 @@
                 `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
 
             // Weekend progress calculation
-            const totalWeekendDays = getWeekendDays(startDate, endDate);
-            const completedWeekendDays = getWeekendDays(startDate, currentDate);
-            const remainingWeekendDays = getWeekendDays(currentDate, endDate);
+            const totalWeekendDays = getSpecificDays(startDate, endDate, 'weekend');
+            const completedWeekendDays = getSpecificDays(startDate, currentDate, 'weekend');
+            const remainingWeekendDays = getSpecificDays(currentDate, endDate, 'weekend');
             
             const weekendProgress = (completedWeekendDays / totalWeekendDays) * 100;
 
-            // Update circle progress
+            // Workday progress calculation
+            const totalWorkDays = getSpecificDays(startDate, endDate, 'workday');
+            const completedWorkDays = getSpecificDays(startDate, currentDate, 'workday');
+            const remainingWorkDays = getSpecificDays(currentDate, endDate, 'workday');
+            
+            const workdayProgress = (completedWorkDays / totalWorkDays) * 100;
+
+            // Update weekend circle progress
             const circleCircumference = 283; // 2 * π * r where r = 45
-            const offset = circleCircumference - (weekendProgress / 100 * circleCircumference);
-            document.getElementById('weekendProgress').style.strokeDashoffset = offset;
+            const weekendOffset = circleCircumference - (weekendProgress / 100 * circleCircumference);
+            document.getElementById('weekendProgress').style.strokeDashoffset = weekendOffset;
+
+            // Update workday progress bar
+            document.getElementById('workdayProgress').style.width = `${workdayProgress}%`;
 
             // Update weekend stats
             document.getElementById('weekendCount').textContent = 
-                `${completedWeekendDays} weekend days completed of ${totalWeekendDays}`;
+                `${completedWeekendDays} weekend days completed of ${totalWeekendDays} (${weekendProgress.toFixed(1)}%)`;
             document.getElementById('weekendRemaining').textContent = 
                 `${remainingWeekendDays} weekend days remaining`;
+
+            // Update workday stats
+            document.getElementById('workdayCount').textContent = 
+                `${completedWorkDays} workdays completed of ${totalWorkDays} (${workdayProgress.toFixed(1)}%)`;
+            document.getElementById('workdayRemaining').textContent = 
+                `${remainingWorkDays} workdays remaining`;
         }
 
-        // Update immediately and then every hour
+        // Dark mode toggle functionality
+        const modeToggle = document.querySelector('.mode-toggle');
+        modeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            // Optional: Save preference to localStorage
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDarkMode);
+        });
+
+        // Check for saved dark mode preference
+        const savedDarkMode = localStorage.getItem('darkMode');
+        if (savedDarkMode === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // Update immediately and then every second (for datetime) and every hour (for progress)
         updateProgress();
+        setInterval(updateDateTime, 1000);
         setInterval(updateProgress, 3600000);
     </script>
 </body>
